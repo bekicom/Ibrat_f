@@ -52,7 +52,7 @@ export const Layout = memo(() => {
         <div className="aside__logo">
           <Link to="/">
             <IoSchoolSharp />
-            <span>STANFORD</span>
+            <span>IBRAT SCHOOL</span>
           </Link>
         </div>
 

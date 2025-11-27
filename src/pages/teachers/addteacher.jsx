@@ -43,6 +43,38 @@ const AddTeacher = () => {
 
   const [updateTeacher] = useUpdateTeacherMutation();
 
+  // ✅ 4 xonali random son generatsiya qilish
+  const generateEmployeeNo = () => {
+    const min = 1000;
+    const max = 9999;
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+  };
+
+  // ✅ Mavjud employeeNo larni tekshirish
+  const getExistingEmployeeNos = () => {
+    return data ? data.map((teacher) => teacher.employeeNo) : [];
+  };
+
+  // ✅ Takrorlanmas employeeNo generatsiya qilish
+  const generateUniqueEmployeeNo = () => {
+    const existingNos = getExistingEmployeeNos();
+    let newEmployeeNo;
+
+    do {
+      newEmployeeNo = generateEmployeeNo().toString();
+    } while (existingNos.includes(newEmployeeNo));
+
+    return newEmployeeNo;
+  };
+
+  // ✅ Component yuklanganda avtomatik employeeNo generatsiya qilish
+  useEffect(() => {
+    if (!id && data) {
+      const newEmployeeNo = generateUniqueEmployeeNo();
+      setEmployeeNo(newEmployeeNo);
+    }
+  }, [data, id]);
+
   useEffect(() => {
     if (id && data) {
       const teacher = data.find((item) => item._id === id);
@@ -51,7 +83,7 @@ const AddTeacher = () => {
         setFirstName(teacher?.firstName);
         setLastName(teacher?.lastName);
         setLogin(teacher?.login || "");
-        setPassword(""); // EDIT rejimida parol bo‘sh turadi
+        setPassword(""); // EDIT rejimida parol bo'sh turadi
 
         const formattedBirthDate = teacher.birthDate
           ? new Date(teacher.birthDate).toISOString().split("T")[0]
@@ -67,8 +99,20 @@ const AddTeacher = () => {
     }
   }, [id, data]);
 
+  // ✅ Yangi employeeNo generatsiya qilish uchun funksiya
+  const handleGenerateNewEmployeeNo = () => {
+    const newEmployeeNo = generateUniqueEmployeeNo();
+    setEmployeeNo(newEmployeeNo);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // ✅ EmployeeNo bo'sh bo'lmasligini tekshirish
+    if (!employeeNo) {
+      alert("Iltimos, Employee No ni generatsiya qiling yoki kiriting!");
+      return;
+    }
 
     const hour = Object.values(schedule).reduce(
       (total, lessons) => total + Number(lessons || 0),
@@ -130,6 +174,8 @@ const AddTeacher = () => {
             type="text"
             value={firstName}
             onChange={(e) => setFirstName(e.target.value)}
+            required
+            autoComplete="off"
           />
         </label>
 
@@ -139,6 +185,8 @@ const AddTeacher = () => {
             type="text"
             value={lastName}
             onChange={(e) => setLastName(e.target.value)}
+            required
+            autoComplete="off"
           />
         </label>
 
@@ -148,6 +196,7 @@ const AddTeacher = () => {
             type="date"
             value={birthDate}
             onChange={(e) => setBirthDate(e.target.value)}
+            autoComplete="off"
           />
         </label>
 
@@ -157,6 +206,7 @@ const AddTeacher = () => {
             type="text"
             value={phoneNumber}
             onChange={(e) => setPhoneNumber(e.target.value)}
+            autoComplete="off"
           />
         </label>
 
@@ -166,16 +216,40 @@ const AddTeacher = () => {
             type="text"
             value={science}
             onChange={(e) => setScience(e.target.value)}
+            required
+            autoComplete="off"
           />
         </label>
 
+        {/* Employee No - Yangilash tugmasi bilan */}
         <label>
           <p>Employee No</p>
-          <input
-            type="text"
-            value={employeeNo}
-            onChange={(e) => setEmployeeNo(e.target.value)}
-          />
+          <div style={{ display: "flex", gap: "8px",width: "10%" ,}}>
+            <input
+              type="text"
+              value={employeeNo}
+              onChange={(e) => setEmployeeNo(e.target.value)}
+              placeholder="Employee No generatsiya qiling"
+              required
+              style={{ flex: 1 ,paddingLeft:"8px",borderRadius:"4px",border:"1px solid #ccc",height:"32px"}}
+              autoComplete="off"
+            />
+            {!id && (
+              <Button
+                type="button"
+                onClick={handleGenerateNewEmployeeNo}
+                style={{ whiteSpace: "nowrap"  ,borderRadius:"4px",border:"1px solid #1890ff",backgroundColor:"#fff",color:"#1890ff"}}
+              >
+                Yangilash
+              </Button>
+            )}
+          </div>
+          {!id && (
+            <small style={{ color: "#666", fontSize: "12px" }}>
+              Employee No avtomatik generatsiya qilinadi, yangilash tugmasi
+              bilan o'zgartirishingiz mumkin
+            </small>
+          )}
         </label>
 
         <label>
@@ -184,20 +258,26 @@ const AddTeacher = () => {
             type="number"
             value={price}
             onChange={(e) => setPrice(e.target.value)}
+            required
+            autoComplete="off"
           />
         </label>
 
-        {/* Login */}
+        {/* Login - Avtocomplete o'chirilgan */}
         <label>
           <p>Login</p>
           <input
             type="text"
             value={login}
             onChange={(e) => setLogin(e.target.value)}
+            required
+            autoComplete="off"
+            id="teacher-login"
+            name="teacher-login"
           />
         </label>
 
-        {/* Parol - ADD va EDIT rejimida ham bor */}
+        {/* Parol - Avtocomplete o'chirilgan */}
         <label>
           <p>{id ? "Yangi parol (ixtiyoriy)" : "Parol"}</p>
           <div className="password-wrapper">
@@ -205,9 +285,13 @@ const AddTeacher = () => {
               type={showPassword ? "text" : "password"}
               value={password}
               placeholder={
-                id ? "Agar parolni yangilamoqchi bo‘lsangiz kiriting" : ""
+                id ? "Agar parolni yangilamoqchi bo'lsangiz kiriting" : ""
               }
               onChange={(e) => setPassword(e.target.value)}
+              required={!id} // Faqat yangi o'qituvchi qo'shishda majburiy
+              autoComplete="new-password"
+              id="teacher-password"
+              name="teacher-password"
             />
             <span
               className="eye-icon"
@@ -222,13 +306,14 @@ const AddTeacher = () => {
           .filter((day) => day !== "_id")
           .map((day) => (
             <label key={day}>
-              <p>{day}</p>
+              <p>{day.charAt(0).toUpperCase() + day.slice(1)}</p>
               <input
                 type="number"
                 min={0}
                 max={24}
                 value={schedule[day] || ""}
                 onChange={(e) => handleScheduleChange(day, e.target.value)}
+                autoComplete="off"
               />
             </label>
           ))}

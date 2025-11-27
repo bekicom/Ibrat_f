@@ -821,23 +821,7 @@ const TeacherDavomat = () => {
                       Ketdi
                     </Button>
 
-                    {/* Kelmadi tugmasi */}
-                    <Popconfirm
-                      title="O'qituvchini kelmagan deb belgilaysizmi?"
-                      onConfirm={() => markAsAbsent(teacher)}
-                      okText="Ha"
-                      cancelText="Yo'q"
-                    >
-                      <Button
-                        danger
-                        size="small"
-                        icon={<FaTimesCircle />}
-                        style={{ fontSize: "12px" , color: "black" }}
-                        disabled={arrivedTime !== "-"}
-                      >
-                        Kelmadi
-                      </Button>
-                    </Popconfirm>
+               
                   </Space>
                 </td>
                 <td>

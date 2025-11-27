@@ -205,19 +205,7 @@ const Student = () => {
              <MdEdit />
            </Button>
          </Popover>
-         <Popover content="QR kod" placement="bottom">
-           <Button
-             type="default"
-             style={{ margin: "0 4px" }}
-             onClick={() => {
-               setSelectedStudent(record);
-               setSelectedStudentId(record._id);
-               setQrModalVisible(true);
-             }}
-           >
-             <MdQrCode />
-           </Button>
-         </Popover>
+      
          <Popover content="O'chirish" placement="bottom">
            <Button
              onClick={() => handleDelete(record._id)}

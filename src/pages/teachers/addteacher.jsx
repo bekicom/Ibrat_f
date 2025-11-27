@@ -9,6 +9,36 @@ import {
 } from "../../context/service/teacher.service";
 import { Button } from "antd";
 
+const DAYS = [
+  "dushanba",
+  "seshanba",
+  "chorshanba",
+  "payshanba",
+  "juma",
+  "shanba",
+];
+
+// Boshlang'ich bo'sh jadval (inputlar bo'sh ko'rinadi)
+const createEmptySchedule = () => {
+  const obj = {};
+  DAYS.forEach((d) => {
+    obj[d] = "";
+  });
+  return obj;
+};
+
+// Backendga ketadigan real jadval (bo'sh => 0)
+const normalizeScheduleForBackend = (schedule) => {
+  const result = {};
+  DAYS.forEach((day) => {
+    const val = schedule[day];
+    // "", null yoki undefined bo'lsa 0 bo'ladi, son bo'lsa Number()
+    result[day] =
+      val === "" || val === null || val === undefined ? 0 : Number(val);
+  });
+  return result;
+};
+
 const AddTeacher = () => {
   const navigate = useNavigate();
   const [addTeacher, { isLoading, isSuccess, isError, error }] =
@@ -32,14 +62,8 @@ const AddTeacher = () => {
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
 
-  const [schedule, setSchedule] = useState({
-    dushanba: 0,
-    seshanba: 0,
-    chorshanba: 0,
-    payshanba: 0,
-    juma: 0,
-    shanba: 0,
-  });
+  // Jadval: UI uchun string ko'rinishida, bo'sh bo'lishi mumkin
+  const [schedule, setSchedule] = useState(createEmptySchedule());
 
   const [updateTeacher] = useUpdateTeacherMutation();
 
@@ -67,21 +91,24 @@ const AddTeacher = () => {
     return newEmployeeNo;
   };
 
-  // ✅ Component yuklanganda avtomatik employeeNo generatsiya qilish
+  // ✅ Component yuklanganda yangi teacher bo'lsa employeeNo generatsiya qilish
   useEffect(() => {
     if (!id && data) {
       const newEmployeeNo = generateUniqueEmployeeNo();
       setEmployeeNo(newEmployeeNo);
+      // Yangi o'qituvchi bo'lsa, jadvalni bo'sh holatga qo'yamiz
+      setSchedule(createEmptySchedule());
     }
   }, [data, id]);
 
+  // ✅ Edit rejimida data’ni formga yuklash
   useEffect(() => {
     if (id && data) {
       const teacher = data.find((item) => item._id === id);
 
       if (teacher) {
-        setFirstName(teacher?.firstName);
-        setLastName(teacher?.lastName);
+        setFirstName(teacher?.firstName || "");
+        setLastName(teacher?.lastName || "");
         setLogin(teacher?.login || "");
         setPassword(""); // EDIT rejimida parol bo'sh turadi
 
@@ -90,11 +117,20 @@ const AddTeacher = () => {
           : "";
         setBirthDate(formattedBirthDate);
 
-        setPhoneNumber(teacher?.phoneNumber);
-        setScience(teacher?.science);
-        setPrice(teacher?.price);
+        setPhoneNumber(teacher?.phoneNumber || "");
+        setScience(teacher?.science || "");
+        setPrice(teacher?.price || "");
         setEmployeeNo(teacher?.employeeNo || "");
-        setSchedule(teacher?.schedule || {});
+
+        // Teacherning schedule'ini UI uchun string ko'rinishida beramiz
+        const teacherSchedule = teacher?.schedule || {};
+        const uiSchedule = createEmptySchedule();
+        DAYS.forEach((day) => {
+          const v = teacherSchedule[day];
+          uiSchedule[day] =
+            v === 0 || v === null || v === undefined ? "" : String(v);
+        });
+        setSchedule(uiSchedule);
       }
     }
   }, [id, data]);
@@ -114,7 +150,10 @@ const AddTeacher = () => {
       return;
     }
 
-    const hour = Object.values(schedule).reduce(
+    // UI dagi jadvalni backend uchun raqamga o'giramiz, bo'sh joylar 0 bo'ladi
+    const normalizedSchedule = normalizeScheduleForBackend(schedule);
+
+    const hour = Object.values(normalizedSchedule).reduce(
       (total, lessons) => total + Number(lessons || 0),
       0
     );
@@ -127,9 +166,9 @@ const AddTeacher = () => {
       science,
       employeeNo,
       hour,
-      monthlySalary: hour * 4 * price,
+      monthlySalary: hour * 4 * Number(price || 0),
       price: Number(price),
-      schedule,
+      schedule: normalizedSchedule, // <-- har bir kun: son, bo'shlar 0
       schoolId,
       login,
       ...(password && { password }), // EDIT rejimida faqat yangi parol yuboriladi
@@ -151,11 +190,19 @@ const AddTeacher = () => {
     }
   };
 
+  // UI da faqat string saqlaymiz, user istasa 0 ham yozishi mumkin
   const handleScheduleChange = (day, value) => {
-    setSchedule((prevSchedule) => ({
-      ...prevSchedule,
-      [day]: Number(value),
-    }));
+    // Manfiy son va 24 dan katta bo'lishiga yo'l qo‘ymaslik uchun oddiy filter
+    let v = value;
+    if (v === "") {
+      // bo'sh qoldirsa, state bo'sh bo'ladi, backendga 0 ketadi
+      setSchedule((prev) => ({ ...prev, [day]: "" }));
+      return;
+    }
+    const num = Number(v);
+    if (Number.isNaN(num) || num < 0) return;
+    if (num > 24) return;
+    setSchedule((prev) => ({ ...prev, [day]: v }));
   };
 
   return (
@@ -224,21 +271,33 @@ const AddTeacher = () => {
         {/* Employee No - Yangilash tugmasi bilan */}
         <label>
           <p>Employee No</p>
-          <div style={{ display: "flex", gap: "8px",width: "10%" ,}}>
+          <div style={{ display: "flex", gap: "8px", width: "10%" }}>
             <input
               type="text"
               value={employeeNo}
               onChange={(e) => setEmployeeNo(e.target.value)}
               placeholder="Employee No generatsiya qiling"
               required
-              style={{ flex: 1 ,paddingLeft:"8px",borderRadius:"4px",border:"1px solid #ccc",height:"32px"}}
+              style={{
+                flex: 1,
+                paddingLeft: "8px",
+                borderRadius: "4px",
+                border: "1px solid #ccc",
+                height: "32px",
+              }}
               autoComplete="off"
             />
             {!id && (
               <Button
                 type="button"
                 onClick={handleGenerateNewEmployeeNo}
-                style={{ whiteSpace: "nowrap"  ,borderRadius:"4px",border:"1px solid #1890ff",backgroundColor:"#fff",color:"#1890ff"}}
+                style={{
+                  whiteSpace: "nowrap",
+                  borderRadius: "4px",
+                  border: "1px solid #1890ff",
+                  backgroundColor: "#fff",
+                  color: "#1890ff",
+                }}
               >
                 Yangilash
               </Button>
@@ -247,7 +306,7 @@ const AddTeacher = () => {
           {!id && (
             <small style={{ color: "#666", fontSize: "12px" }}>
               Employee No avtomatik generatsiya qilinadi, yangilash tugmasi
-              bilan o'zgartirishingiz mumkin
+              bilan o&apos;zgartirishingiz mumkin
             </small>
           )}
         </label>
@@ -263,7 +322,7 @@ const AddTeacher = () => {
           />
         </label>
 
-        {/* Login - Avtocomplete o'chirilgan */}
+        {/* Login */}
         <label>
           <p>Login</p>
           <input
@@ -277,7 +336,7 @@ const AddTeacher = () => {
           />
         </label>
 
-        {/* Parol - Avtocomplete o'chirilgan */}
+        {/* Parol */}
         <label>
           <p>{id ? "Yangi parol (ixtiyoriy)" : "Parol"}</p>
           <div className="password-wrapper">
@@ -288,7 +347,7 @@ const AddTeacher = () => {
                 id ? "Agar parolni yangilamoqchi bo'lsangiz kiriting" : ""
               }
               onChange={(e) => setPassword(e.target.value)}
-              required={!id} // Faqat yangi o'qituvchi qo'shishda majburiy
+              required={!id}
               autoComplete="new-password"
               id="teacher-password"
               name="teacher-password"
@@ -302,21 +361,21 @@ const AddTeacher = () => {
           </div>
         </label>
 
-        {Object.keys(schedule)
-          .filter((day) => day !== "_id")
-          .map((day) => (
-            <label key={day}>
-              <p>{day.charAt(0).toUpperCase() + day.slice(1)}</p>
-              <input
-                type="number"
-                min={0}
-                max={24}
-                value={schedule[day] || ""}
-                onChange={(e) => handleScheduleChange(day, e.target.value)}
-                autoComplete="off"
-              />
-            </label>
-          ))}
+        {/* Haftalik jadval */}
+        {DAYS.map((day) => (
+          <label key={day}>
+            <p>{day.charAt(0).toUpperCase() + day.slice(1)}</p>
+            <input
+              type="number"
+              min={0}
+              max={24}
+              value={schedule[day]}
+              placeholder="0"
+              onChange={(e) => handleScheduleChange(day, e.target.value)}
+              autoComplete="off"
+            />
+          </label>
+        ))}
 
         <button type="submit" disabled={isLoading}>
           {isLoading ? "Yuklanmoqda..." : id ? "Yangilash" : "Qo'shish"}
